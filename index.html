@@ -2,32 +2,51 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Employee HR Management System</title>
+<title>Employee HR System</title>
 
 <style>
+
 body{
 font-family:Segoe UI;
 background:#eef2f7;
-padding:20px;
+margin:0;
 }
 
-.container{
-max-width:1200px;
-margin:auto;
+/* ⭐ STICKY TOP PANEL */
+.top{
+position:sticky;
+top:0;
 background:white;
-padding:25px;
-border-radius:10px;
-box-shadow:0 5px 15px rgba(0,0,0,0.1);
+z-index:1000;
+padding:20px;
+box-shadow:0 3px 10px rgba(0,0,0,0.1);
 }
 
-h2{text-align:center;margin-bottom:20px;color:#333}
+/* DASHBOARD CARDS */
+.dashboard{
+display:flex;
+gap:20px;
+margin-bottom:15px;
+}
 
+.card{
+flex:1;
+padding:15px;
+border-radius:8px;
+color:white;
+font-size:18px;
+}
+
+.total{background:#007bff}
+.active{background:#28a745}
+
+/* FORM */
 input,select{
 padding:10px;
 margin:5px;
 border:1px solid #ccc;
 border-radius:5px;
-width:180px;
+width:170px;
 }
 
 button{
@@ -41,10 +60,15 @@ cursor:pointer;
 
 button.delete{background:#dc3545}
 
+/* TABLE */
+.container{
+padding:20px;
+}
+
 table{
 width:100%;
 border-collapse:collapse;
-margin-top:20px;
+background:white;
 }
 
 th,td{
@@ -52,8 +76,14 @@ padding:12px;
 border-bottom:1px solid #ddd;
 }
 
-th{background:#007bff;color:white}
+th{
+background:#007bff;
+color:white;
+position:sticky;
+top:180px; /* freeze header */
+}
 
+/* STATUS BADGES */
 .badge{
 padding:5px 10px;
 border-radius:20px;
@@ -61,31 +91,33 @@ color:white;
 font-size:12px;
 }
 
-.active{background:#28a745}
+.activeBadge{background:#28a745}
 .inactive{background:#6c757d}
 .resigned{background:#dc3545}
 
-.searchbox{
-width:300px;
-margin-bottom:10px;
-}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<!-- ⭐ TOP FREEZE AREA -->
+<div class="top">
 
-<h2>Employee HR Management System</h2>
+<h2>Employee HR Management</h2>
 
-<input class="searchbox" id="search" placeholder="🔍 Search employee..." onkeyup="render()"><br>
+<div class="dashboard">
+<div class="card total">Total Employees: <span id="total">0</span></div>
+<div class="card active">Active Staff: <span id="active">0</span></div>
+</div>
+
+<input id="search" placeholder="🔍 Search..." onkeyup="render()"><br>
 
 <input id="department" placeholder="Department">
 <input id="task" placeholder="Task">
-<input id="epf" placeholder="EPF Number">
-<input id="name" placeholder="Employee Name">
-<input id="contact" placeholder="Contact Details">
-<input id="emergency" placeholder="Emergency Contact">
+<input id="epf" placeholder="EPF">
+<input id="name" placeholder="Name">
+<input id="contact" placeholder="Contact">
+<input id="emergency" placeholder="Emergency">
 
 <select id="status">
 <option>Active</option>
@@ -95,13 +127,17 @@ margin-bottom:10px;
 
 <input id="remark" placeholder="Resignation Remark">
 
-<br>
-<button onclick="save()">💾 Save Employee</button>
+<button onclick="save()">Save</button>
+
+</div>
+
+<!-- TABLE AREA -->
+<div class="container">
 
 <table>
 <thead>
 <tr>
-<th>Department</th>
+<th>Dept</th>
 <th>Task</th>
 <th>EPF</th>
 <th>Name</th>
@@ -109,7 +145,7 @@ margin-bottom:10px;
 <th>Emergency</th>
 <th>Status</th>
 <th>Remark</th>
-<th>Actions</th>
+<th>Action</th>
 </tr>
 </thead>
 <tbody id="tbody"></tbody>
@@ -123,34 +159,38 @@ const URL="https://script.google.com/macros/s/AKfycbz0RY4MCx-zBUrl9sbOpiasxYqx3q
 let data=[], editRow=null;
 
 function load(){
- fetch(URL)
- .then(r=>r.json())
- .then(d=>{
+ fetch(URL).then(r=>r.json()).then(d=>{
    data=d;
    render();
  });
 }
 
-function getStatus(value){
- // IMPORTANT: if sheet status empty → show Active
- if(!value || value==="") return "Active";
- return value;
+function getStatus(v){
+ if(!v || v==="") return "Active";
+ return v;
 }
 
-function statusBadge(s){
- if(s==="Active") return `<span class="badge active">Active</span>`;
+function badge(s){
+ if(s==="Active") return `<span class="badge activeBadge">Active</span>`;
  if(s==="Inactive") return `<span class="badge inactive">Inactive</span>`;
  return `<span class="badge resigned">Resigned</span>`;
 }
 
 function render(){
+
  const key=search.value.toLowerCase();
  tbody.innerHTML="";
 
- for(let i=1;i<data.length;i++){
-   const r=data[i];
+ let total=0;
+ let activeCount=0;
 
-   let status = getStatus(r[6]);
+ for(let i=1;i<data.length;i++){
+
+   const r=data[i];
+   let status=getStatus(r[6]);
+
+   total++;
+   if(status==="Active") activeCount++;
 
    if(!r.join(" ").toLowerCase().includes(key)) continue;
 
@@ -162,7 +202,7 @@ function render(){
    <td>${r[3]}</td>
    <td>${r[4]}</td>
    <td>${r[5]}</td>
-   <td>${statusBadge(status)}</td>
+   <td>${badge(status)}</td>
    <td>${r[7]||""}</td>
    <td>
    <button onclick="edit(${i})">Edit</button>
@@ -170,18 +210,16 @@ function render(){
    </td>
    </tr>`;
  }
+
+ document.getElementById("total").innerText=total;
+ document.getElementById("active").innerText=activeCount;
 }
 
 function save(){
 
- let stat = status.value;
+ let stat=status.value;
 
- // AUTO RESIGN LOGIC
- if(remark.value.trim() !== ""){
-   stat="Resigned";
- }
-
- // DEFAULT ACTIVE if blank
+ if(remark.value.trim()!=="") stat="Resigned";
  if(!stat) stat="Active";
 
  fetch(URL,{
@@ -203,22 +241,19 @@ function save(){
 
 function edit(i){
  const r=data[i];
-
  department.value=r[0];
  task.value=r[1];
  epf.value=r[2];
  name.value=r[3];
  contact.value=r[4];
  emergency.value=r[5];
-
  status.value=getStatus(r[6]);
  remark.value=r[7]||"";
-
  editRow=i+1;
 }
 
 function del(i){
- if(confirm("Delete this employee?")){
+ if(confirm("Delete employee?")){
  fetch(URL,{
  method:"POST",
  body:JSON.stringify({action:"delete",row:i+1})
@@ -232,10 +267,8 @@ function clear(){
  editRow=null;
 }
 
-remark.addEventListener("input", function(){
- if(this.value.trim()!==""){
-   status.value="Resigned";
- }
+remark.addEventListener("input",()=>{
+ if(remark.value.trim()!=="") status.value="Resigned";
 });
 
 load();
