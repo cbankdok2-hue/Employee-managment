@@ -1,1 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Employee HR Management System</title>
 
+<style>
+body{
+font-family:Segoe UI;
+background:#eef2f7;
+padding:20px;
+}
+
+.container{
+max-width:1200px;
+margin:auto;
+background:white;
+padding:25px;
+border-radius:10px;
+box-shadow:0 5px 15px rgba(0,0,0,0.1);
+}
+
+h2{text-align:center;margin-bottom:20px;color:#333}
+
+input,select{
+padding:10px;
+margin:5px;
+border:1px solid #ccc;
+border-radius:5px;
+width:180px;
+}
+
+button{
+padding:10px 15px;
+border:none;
+background:#007bff;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
+
+button.delete{background:#dc3545}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+}
+
+th,td{
+padding:12px;
+border-bottom:1px solid #ddd;
+}
+
+th{background:#007bff;color:white}
+
+.badge{
+padding:5px 10px;
+border-radius:20px;
+color:white;
+font-size:12px;
+}
+
+.active{background:#28a745}
+.inactive{background:#6c757d}
+.resigned{background:#dc3545}
+
+.searchbox{
+width:300px;
+margin-bottom:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Employee HR Management System</h2>
+
+<input class="searchbox" id="search" placeholder="🔍 Search employee..." onkeyup="render()"><br>
+
+<input id="department" placeholder="Department">
+<input id="task" placeholder="Task">
+<input id="epf" placeholder="EPF Number">
+<input id="name" placeholder="Employee Name">
+<input id="contact" placeholder="Contact Details">
+<input id="emergency" placeholder="Emergency Contact">
+
+<select id="status">
+<option>Active</option>
+<option>Inactive</option>
+<option>Resigned</option>
+</select>
+
+<input id="remark" placeholder="Resignation Remark">
+
+<br>
+<button onclick="save()">💾 Save Employee</button>
+
+<table>
+<thead>
+<tr>
+<th>Department</th>
+<th>Task</th>
+<th>EPF</th>
+<th>Name</th>
+<th>Contact</th>
+<th>Emergency</th>
+<th>Status</th>
+<th>Remark</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+
+</div>
+
+<script>
+
+const URL="YOUR_SCRIPT_URL";
+let data=[], editRow=null;
+
+function load(){
+ fetch(URL)
+ .then(r=>r.json())
+ .then(d=>{
+   data=d;
+   render();
+ });
+}
+
+function getStatus(value){
+ // IMPORTANT: if sheet status empty → show Active
+ if(!value || value==="") return "Active";
+ return value;
+}
+
+function statusBadge(s){
+ if(s==="Active") return `<span class="badge active">Active</span>`;
+ if(s==="Inactive") return `<span class="badge inactive">Inactive</span>`;
+ return `<span class="badge resigned">Resigned</span>`;
+}
+
+function render(){
+ const key=search.value.toLowerCase();
+ tbody.innerHTML="";
+
+ for(let i=1;i<data.length;i++){
+   const r=data[i];
+
+   let status = getStatus(r[6]);
+
+   if(!r.join(" ").toLowerCase().includes(key)) continue;
+
+   tbody.innerHTML+=`
+   <tr>
+   <td>${r[0]}</td>
+   <td>${r[1]}</td>
+   <td>${r[2]}</td>
+   <td>${r[3]}</td>
+   <td>${r[4]}</td>
+   <td>${r[5]}</td>
+   <td>${statusBadge(status)}</td>
+   <td>${r[7]||""}</td>
+   <td>
+   <button onclick="edit(${i})">Edit</button>
+   <button class="delete" onclick="del(${i})">Delete</button>
+   </td>
+   </tr>`;
+ }
+}
+
+function save(){
+
+ let stat = status.value;
+
+ // AUTO RESIGN LOGIC
+ if(remark.value.trim() !== ""){
+   stat="Resigned";
+ }
+
+ // DEFAULT ACTIVE if blank
+ if(!stat) stat="Active";
+
+ fetch(URL,{
+ method:"POST",
+ body:JSON.stringify({
+   action:editRow?"update":"add",
+   row:editRow,
+   department:department.value,
+   task:task.value,
+   epf:epf.value,
+   name:name.value,
+   contact:contact.value,
+   emergency:emergency.value,
+   status:stat,
+   remark:remark.value
+ })
+ }).then(()=>{clear();load();});
+}
+
+function edit(i){
+ const r=data[i];
+
+ department.value=r[0];
+ task.value=r[1];
+ epf.value=r[2];
+ name.value=r[3];
+ contact.value=r[4];
+ emergency.value=r[5];
+
+ status.value=getStatus(r[6]);
+ remark.value=r[7]||"";
+
+ editRow=i+1;
+}
+
+function del(i){
+ if(confirm("Delete this employee?")){
+ fetch(URL,{
+ method:"POST",
+ body:JSON.stringify({action:"delete",row:i+1})
+ }).then(load);
+ }
+}
+
+function clear(){
+ document.querySelectorAll("input").forEach(i=>i.value="");
+ status.value="Active";
+ editRow=null;
+}
+
+remark.addEventListener("input", function(){
+ if(this.value.trim()!==""){
+   status.value="Resigned";
+ }
+});
+
+load();
+
+</script>
+
+</body>
+</html>
